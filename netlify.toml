@@ -1,0 +1,15 @@
+# Career Nexus on Netlify.
+# This is a Next.js App Router app with server routes. Netlify must RUN the build
+# (Git import or Netlify CLI). Drag-and-drop of this folder as a static site will not work.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # bcryptjs and pdfkit need the Node runtime, not the edge runtime.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
