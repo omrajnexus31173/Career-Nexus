@@ -11,11 +11,18 @@ export async function GET(request: Request) {
   return apiHandler(async () => {
     const user = await requireUser();
     const summary = new URL(request.url).searchParams.get("summary") === "1";
-    const unread = await unreadCount(user.id);
-    if (summary) return ok({ unread });
-    const items = await listNotifications(user.id, 50);
-    return ok({ items, unread });
-  });
+    if (summary) {
+      const unread = await unreadCount(user.id);
+      return ok({ unread });
+    }
+
+    const [unread, items] = await Promise.all([
+      unreadCount(user.id),
+      listNotifications(user.id, 50),
+      ]);
+
+      return ok({ items, unread });
+    });
 }
 
 export async function PATCH() {

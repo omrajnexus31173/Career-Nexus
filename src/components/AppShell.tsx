@@ -90,7 +90,6 @@ function Shell({
         /* a background poll failure must never break the shell */
       }
     };
-    tick();
     const id = window.setInterval(tick, 60_000);
     const onFocus = () => void tick();
     window.addEventListener("focus", onFocus);

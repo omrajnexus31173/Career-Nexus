@@ -13,6 +13,7 @@ import {
   settings,
   userLanguages,
   userSkills,
+  users,
   experiences,
   educations,
   type User,
@@ -125,28 +126,31 @@ export function computeCompletion(
 }
 
 export async function loadCounts(userId: string) {
-  const [cSkills, cLanguages, cProjects, cCerts, cExp, cEdu, cDocs, cResumes, cRoadmaps] =
-    await Promise.all([
-      db.select({ n: sql<number>`count(*)::int` }).from(userSkills).where(eq(userSkills.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(userLanguages).where(eq(userLanguages.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(projects).where(eq(projects.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(certifications).where(eq(certifications.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(experiences).where(eq(experiences.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(educations).where(eq(educations.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(documents).where(eq(documents.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(resumes).where(eq(resumes.userId, userId)),
-      db.select({ n: sql<number>`count(*)::int` }).from(roadmaps).where(eq(roadmaps.userId, userId)),
-    ]);
+  const [counts] = await db
+    .select({
+      skills: sql<number>`(select count(*)::int from ${userSkills} where ${userSkills.userId} = ${userId})`,
+      languages: sql<number>`(select count(*)::int from ${userLanguages} where ${userLanguages.userId} = ${userId})`,
+      projects: sql<number>`(select count(*)::int from ${projects} where ${projects.userId} = ${userId})`,
+      certifications: sql<number>`(select count(*)::int from ${certifications} where ${certifications.userId} = ${userId})`,
+      experiences: sql<number>`(select count(*)::int from ${experiences} where ${experiences.userId} = ${userId})`,
+      educations: sql<number>`(select count(*)::int from ${educations} where ${educations.userId} = ${userId})`,
+      documents: sql<number>`(select count(*)::int from ${documents} where ${documents.userId} = ${userId})`,
+      resumes: sql<number>`(select count(*)::int from ${resumes} where ${resumes.userId} = ${userId})`,
+      roadmaps: sql<number>`(select count(*)::int from ${roadmaps} where ${roadmaps.userId} = ${userId})`,
+    })
+    .from(users)
+    .where(eq(users.id, userId));
+
   return {
-    skills: cSkills[0]?.n ?? 0,
-    languages: cLanguages[0]?.n ?? 0,
-    projects: cProjects[0]?.n ?? 0,
-    certifications: cCerts[0]?.n ?? 0,
-    experiences: cExp[0]?.n ?? 0,
-    educations: cEdu[0]?.n ?? 0,
-    documents: cDocs[0]?.n ?? 0,
-    resumes: cResumes[0]?.n ?? 0,
-    roadmaps: cRoadmaps[0]?.n ?? 0,
+    skills: counts?.skills ?? 0,
+    languages: counts?.languages ?? 0,
+    projects: counts?.projects ?? 0,
+    certifications: counts?.certifications ?? 0,
+    experiences: counts?.experiences ?? 0,
+    educations: counts?.educations ?? 0,
+    documents: counts?.documents ?? 0,
+    resumes: counts?.resumes ?? 0,
+    roadmaps: counts?.roadmaps ?? 0,
   };
 }
 

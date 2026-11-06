@@ -12,9 +12,11 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return apiHandler(async () => {
     const user = await requireUser();
-    const profile = await db.query.profiles.findFirst({ where: eq(profiles.userId, user.id) });
-    const userSettings = await ensureSettings(user.id);
-    const counts = await loadCounts(user.id);
+    const [profile, userSettings, counts] = await Promise.all([
+      db.query.profiles.findFirst({ where: eq(profiles.userId, user.id) }),
+      ensureSettings(user.id),
+      loadCounts(user.id),
+    ]);
     return ok({
       user: publicUser(user),
       profile,
