@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles, settings } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, parseBody } from "@/lib/http";
 import { profileSchema } from "@/lib/validation";
 import { computeCompletion, ensureSettings, loadCounts, recordActivity } from "@/lib/engage";
@@ -27,7 +27,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, profileSchema);
 
     const cleaned: Record<string, unknown> = {};

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { userLanguages } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { languageSchema } from "@/lib/validation";
 import { recordActivity } from "@/lib/engage";
@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, languageSchema);
     const name = body.name.trim();
     const [row] = await db

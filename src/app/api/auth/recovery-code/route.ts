@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { passwordResets } from "@/db/schema";
-import { hashToken, randomToken, requireUser } from "@/lib/auth";
+import { hashToken, randomToken, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, rateLimit } from "@/lib/http";
 import { recordActivity } from "@/lib/engage";
 
@@ -12,7 +12,7 @@ import { recordActivity } from "@/lib/engage";
 export async function POST() {
   return apiHandler(async () => {
     await rateLimit("recovery-code", 5, 60 * 60 * 1000);
-    const user = await requireUser();
+    const user = await requireWritableUser();
 
     await db.update(passwordResets).set({ usedAt: new Date() })
       .where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt)));

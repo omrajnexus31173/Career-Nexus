@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { roadmapPhases, roadmapTasks, roadmaps } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, parseBody } from "@/lib/http";
 import { roadmapPatchSchema } from "@/lib/validation";
 import { computeProgress } from "@/lib/engines";
@@ -32,7 +32,7 @@ export async function GET(_request: Request, ctx: Ctx) {
 
 export async function PATCH(request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id } = await ctx.params;
     await owned(user.id, id);
     const body = await parseBody(request, roadmapPatchSchema);
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
 export async function DELETE(_request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id } = await ctx.params;
     const row = await owned(user.id, id);
     await db.delete(roadmaps).where(eq(roadmaps.id, id));

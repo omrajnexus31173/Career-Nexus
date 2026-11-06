@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { certifications } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { certificationSchema } from "@/lib/validation";
 import { notify, recordActivity } from "@/lib/engage";
@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, certificationSchema);
     const [row] = await db.insert(certifications).values({ userId: user.id, ...body }).returning();
     await recordActivity(user.id, "certification", `Added certification: ${row.name}`, "/documents");

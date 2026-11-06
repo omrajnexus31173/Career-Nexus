@@ -6,6 +6,7 @@ import { apiHandler, ok, parseBody, rateLimit } from "@/lib/http";
 import { loginSchema } from "@/lib/validation";
 import { publicUser } from "@/lib/serialize";
 import { recordActivity } from "@/lib/engage";
+import { DEMO_EMAIL, resetDemoAccount } from "@/lib/seed";
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -23,6 +24,20 @@ export async function POST(request: Request) {
     if (!valid) {
       await pause(250);
       throw new ApiError(401, "Incorrect email or password.");
+    }
+
+    if (normalizeEmail(body.email) === DEMO_EMAIL) {
+      const freshUser = await resetDemoAccount();
+      await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, freshUser.id));
+      await createSession(freshUser.id, await requestMeta());
+      return ok({ user: publicUser(freshUser) });
+    }
+
+    if (normalizeEmail(body.email) === DEMO_EMAIL) {
+      const freshUser = await resetDemoAccount();
+      await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, freshUser.id));
+      await createSession(freshUser.id, await requestMeta());
+      return ok({ user: publicUser(freshUser) });
     }
 
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));

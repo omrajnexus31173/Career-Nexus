@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { resumes } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, parseBody } from "@/lib/http";
 import { resumeSchema } from "@/lib/validation";
 import { resolveResumeData } from "@/lib/resume";
@@ -28,7 +28,7 @@ export async function GET(_request: Request, ctx: Ctx) {
 
 export async function PATCH(request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id } = await ctx.params;
     await owned(user.id, id);
     const body = await parseBody(request, resumeSchema.partial());
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
 export async function DELETE(_request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id } = await ctx.params;
     const row = await owned(user.id, id);
     await db.delete(resumes).where(eq(resumes.id, id));

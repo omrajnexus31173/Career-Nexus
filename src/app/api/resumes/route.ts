@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { resumes } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { resumeSchema } from "@/lib/validation";
 import { defaultResumeInput, resolveResumeData } from "@/lib/resume";
@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, resumeSchema.partial()).catch(() => ({}));
     const values = { userId: user.id, ...defaultResumeInput(user), ...body };
     const [row] = await db.insert(resumes).values(values).returning();

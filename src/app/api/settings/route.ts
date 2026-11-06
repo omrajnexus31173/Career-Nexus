@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, parseBody } from "@/lib/http";
 import { settingsSchema } from "@/lib/validation";
 import { ensureSettings } from "@/lib/engage";
@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, settingsSchema);
     await ensureSettings(user.id);
     const [row] = await db

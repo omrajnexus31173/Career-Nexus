@@ -1,7 +1,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages, roadmapTasks, roadmaps } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, isDemoUser, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { chatSchema } from "@/lib/validation";
 import { aiStatus, askAssistant } from "@/lib/ai";
@@ -21,11 +21,13 @@ export async function GET(request: Request) {
         where: and(eq(conversations.id, id), eq(conversations.userId, user.id)),
       });
       if (!convo) throw new ApiError(404, "That conversation does not exist.");
+
       const history = await db
         .select()
         .from(messages)
         .where(eq(messages.conversationId, convo.id))
         .orderBy(asc(messages.createdAt));
+
       return ok({ conversation: convo, messages: history, ai: aiStatus() });
     }
 
@@ -35,6 +37,7 @@ export async function GET(request: Request) {
       .where(eq(conversations.userId, user.id))
       .orderBy(desc(conversations.createdAt))
       .limit(40);
+
     return ok({ items, ai: aiStatus() });
   });
 }
@@ -43,28 +46,34 @@ export async function POST(request: Request) {
   return apiHandler(async () => {
     const user = await requireUser();
     const body = await parseBody(request, chatSchema);
+    const demo = isDemoUser(user);
 
     let conversation = body.conversationId
       ? await db.query.conversations.findFirst({
           where: and(eq(conversations.id, body.conversationId), eq(conversations.userId, user.id)),
         })
       : null;
+
     if (body.conversationId && !conversation) {
       throw new ApiError(404, "That conversation does not exist.");
     }
-    if (!conversation) {
+
+    if (!conversation && !demo) {
       [conversation] = await db
         .insert(conversations)
         .values({ userId: user.id, title: body.message.slice(0, 70) })
         .returning();
     }
 
-    const prior = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.conversationId, conversation.id))
-      .orderBy(desc(messages.createdAt))
-      .limit(12);
+    const prior = conversation
+      ? await db
+          .select()
+          .from(messages)
+          .where(eq(messages.conversationId, conversation.id))
+          .orderBy(desc(messages.createdAt))
+          .limit(12)
+      : [];
+
     const history = prior.reverse().map((m) => ({ role: m.role, content: m.content }));
 
     const [snapshot, latest, activeRoadmap] = await Promise.all([
@@ -77,18 +86,12 @@ export async function POST(request: Request) {
     ]);
 
     let progress: { percent: number; done: number; total: number; nextAction: string } | null = null;
+
     if (activeRoadmap) {
       const tasks = await db.select().from(roadmapTasks).where(eq(roadmapTasks.roadmapId, activeRoadmap.id));
       const p = computeProgress(tasks);
       progress = { percent: p.percent, done: p.done, total: p.total, nextAction: p.nextAction };
     }
-
-    await db.insert(messages).values({
-      conversationId: conversation.id,
-      userId: user.id,
-      role: "user",
-      content: body.message,
-    });
 
     const reply = await askAssistant(body.message, {
       userName: user.fullName,
@@ -113,6 +116,32 @@ export async function POST(request: Request) {
         : null,
       progress,
       history,
+    });
+
+    if (demo) {
+      return created({
+        conversation: null,
+        message: {
+          id: "demo-message",
+          role: "assistant",
+          content: reply.content,
+          provider: reply.provider,
+        },
+        notice: "Demo mode: conversations are not saved.",
+        provider: reply.provider,
+        ai: aiStatus(),
+      });
+    }
+
+    if (!conversation) {
+      throw new ApiError(500, "Could not create the conversation.");
+    }
+
+    await db.insert(messages).values({
+      conversationId: conversation.id,
+      userId: user.id,
+      role: "user",
+      content: body.message,
     });
 
     const [saved] = await db

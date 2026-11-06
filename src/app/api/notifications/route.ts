@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok } from "@/lib/http";
 import { listNotifications, unreadCount } from "@/lib/engage";
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
 export async function PATCH() {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     await db
       .update(notifications)
       .set({ readAt: new Date() })

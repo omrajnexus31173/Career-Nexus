@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { certifications, documents } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok } from "@/lib/http";
 import { recordActivity } from "@/lib/engage";
 import { storeFile, ALLOWED_LABEL, MAX_UPLOAD_BYTES } from "@/lib/storage";
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const form = await request.formData().catch(() => {
       throw new ApiError(400, "Expected a multipart/form-data upload.");
     });

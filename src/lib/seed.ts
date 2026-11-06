@@ -1,7 +1,7 @@
 
 import PDFDocument from "pdfkit";
 import { and, eq, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, pool } from "@/db";
 import {
   activities,
   certifications,
@@ -26,17 +26,33 @@ import { CAREERS } from "@/lib/catalog";
 import { buildRoadmap, computeProgress, loadSnapshot, analyseAgainst, persistAnalysis } from "@/lib/engines";
 import { hashPassword } from "@/lib/auth";
 import { defaultResumeInput } from "@/lib/resume";
-import { storeBuffer } from "@/lib/storage";
+import { deleteFile, storeBuffer } from "@/lib/storage";
 
 export const DEMO_EMAIL = "demo@careernexus.app";
 export const DEMO_PASSWORD = "Demo1234!";
 
 let seeding: Promise<void> | null = null;
 
-/** Idempotent bootstrap: catalogue + one rich demo account. Safe to call repeatedly. */
+async function withSeedLock<T>(work: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  const lockKey = "742019260611";
+
+  try {
+    await client.query("SELECT pg_advisory_lock($1::bigint)", [lockKey]);
+    return await work();
+  } finally {
+    try {
+      await client.query("SELECT pg_advisory_unlock($1::bigint)", [lockKey]);
+    } finally {
+      client.release();
+    }
+  }
+}
+
+/** Idempotent bootstrap: catalogue + one rich demo account. */
 export async function ensureSeed() {
   if (!seeding) {
-    seeding = run().catch((e) => {
+    seeding = withSeedLock(run).catch((e) => {
       seeding = null;
       throw e;
     });
@@ -50,6 +66,48 @@ async function run() {
   await seedDemoUser();
 }
 
+/** Rebuild only the demo account. All other users remain untouched. */
+export async function resetDemoAccount() {
+  return withSeedLock(async () => {
+    await db.execute(sql`select 1`);
+    await seedCareers();
+
+    const existing = await db.query.users.findFirst({
+      where: eq(users.email, DEMO_EMAIL),
+    });
+
+    if (existing) {
+      const files = await db
+        .select({ storagePath: documents.storagePath })
+        .from(documents)
+        .where(eq(documents.userId, existing.id));
+
+      if (process.env.CLOUDINARY_URL) {
+        for (const file of [...new Set(files.map((item) => item.storagePath))]) {
+          try {
+            await deleteFile(file);
+          } catch (error) {
+            console.error("Demo file cleanup failed:", error);
+          }
+        }
+      }
+
+      await db.delete(users).where(eq(users.id, existing.id));
+    }
+
+    await seedDemoUser();
+
+    const freshUser = await db.query.users.findFirst({
+      where: eq(users.email, DEMO_EMAIL),
+    });
+
+    if (!freshUser) {
+      throw new Error("Demo account could not be recreated.");
+    }
+
+    return freshUser;
+  });
+}
 async function seedCareers() {
   const { careers } = await import("@/db/schema");
   const existing = await db.select({ n: sql<number>`count(*)::int` }).from(careers);

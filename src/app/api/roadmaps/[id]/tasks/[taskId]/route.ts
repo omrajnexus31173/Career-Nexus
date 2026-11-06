@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { roadmapTasks, roadmaps } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, ok, parseBody } from "@/lib/http";
 import { taskPatchSchema } from "@/lib/validation";
 import { computeProgress } from "@/lib/engines";
@@ -23,7 +23,7 @@ async function ownedTask(userId: string, id: string, taskId: string) {
 
 export async function PATCH(request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id, taskId } = await ctx.params;
     const { roadmap } = await ownedTask(user.id, id, taskId);
     const body = await parseBody(request, taskPatchSchema);
@@ -75,7 +75,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
 export async function DELETE(_request: Request, ctx: Ctx) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const { id, taskId } = await ctx.params;
     const { roadmap, task } = await ownedTask(user.id, id, taskId);
     await db.delete(roadmapTasks).where(eq(roadmapTasks.id, taskId));

@@ -183,7 +183,19 @@ export async function requireUser(): Promise<User> {
   }
   return ctx.user;
 }
+export function isDemoUser(user: User): boolean {
+  return user.email.trim().toLowerCase() === "demo@careernexus.app";
+}
 
+export async function requireWritableUser(): Promise<User> {
+  const user = await requireUser();
+
+  if (isDemoUser(user)) {
+    throw new ApiError(403, "Demo mode is read-only. Changes are disabled.");
+  }
+
+  return user;
+}
 export async function requestMeta() {
   const h = await headers();
   const forwarded = h.get("x-forwarded-for");

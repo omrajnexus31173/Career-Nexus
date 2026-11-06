@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { roadmapTasks, roadmaps } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { roadmapSchema } from "@/lib/validation";
 import { buildRoadmap, computeProgress } from "@/lib/engines";
@@ -30,7 +30,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, roadmapSchema);
     const result = await buildRoadmap(user.id, body);
 

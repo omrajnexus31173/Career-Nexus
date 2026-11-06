@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { analyses } from "@/db/schema";
-import { ApiError, requireUser } from "@/lib/auth";
+import { ApiError, requireUser, requireWritableUser } from "@/lib/auth";
 import { apiHandler, created, ok, parseBody } from "@/lib/http";
 import { analysisSchema } from "@/lib/validation";
 import { analyseAgainst, loadSnapshot, persistAnalysis, getCareer } from "@/lib/engines";
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiHandler(async () => {
-    const user = await requireUser();
+    const user = await requireWritableUser();
     const body = await parseBody(request, analysisSchema);
     const career = getCareer(body.careerId);
     if (!career) throw new ApiError(404, "That career path is not in the catalogue.");
